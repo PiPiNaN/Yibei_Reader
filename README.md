@@ -6,6 +6,4 @@ A bilingual paper reader, especially for Chinese users. 能够将英语论文对
 
 ![screenshot](screen01.JPG "Optional title")
 
-## Install
-1. Clone the repository.
-2. 
+
