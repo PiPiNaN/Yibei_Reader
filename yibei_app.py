@@ -5,6 +5,8 @@ from PySide6.QtWidgets import *
 from worker_thread import *
 from reader_widget import *
 from pathlib import Path
+import shutil
+import pymupdf
 
 PDF_NAME = "demo.pdf"
 BASE_DIR = Path("files")
@@ -30,6 +32,9 @@ class MainWindow(QMainWindow):
         self.reader2 = ReaderWidget()
         splitter1.addWidget(self.reader2)
         layout.addWidget(splitter1)
+        self.reader1.load_file(self.current_pdf)
+        self.reader2.load_file(self.current_pdf)
+        
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -45,13 +50,31 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("toolbar")
 
         self.import_action = QAction(QIcon("./icons/icons_import-100.png"),"导入PDF文件",self)
+        self.import_action.triggered.connect(self.onImportPDF)
         toolbar.addAction(self.import_action)
 
         self.translate_action = QAction(QIcon("./icons/icons_en_zh-96.png"),"英译汉", self)
         self.translate_action.triggered.connect(self.onTranslateClick)
         toolbar.addAction(self.translate_action)
 
-        self.addToolBar(toolbar)       
+        self.addToolBar(toolbar)      
+
+    def onImportPDF(self):
+        dialog = QFileDialog(self) 
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        dialog.setNameFilter("PDFs (*.pdf *PDF)")
+        dialog.setViewMode(QFileDialog.ViewMode.List)
+        if dialog.exec():
+            filenames = dialog.selectedFiles()
+            for f in filenames:
+                doc = pymupdf.open(f)
+                # print(doc.metadata["title"])
+                if doc.metadata["title"]:
+                    rename = (doc.metadata["title"] +".pdf").replace(':',"")
+                    shutil.copy(f, BASE_DIR / rename)
+                else:
+                    shutil.copy(f, BASE_DIR)
+            print(filenames)
     
     def onTranslateClick(self):
         self.thread = WorkerThread(self.current_pdf)
