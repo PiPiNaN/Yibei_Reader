@@ -2,14 +2,17 @@ import sys
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
+from sympy import im
 from worker_thread import *
-from reader_widget import *
+# from reader_widget import *
+from pdfviewer import *
+from reader_thread import *
 from pathlib import Path
 import shutil
 import pymupdf
 
 PDF_NAME = "demo.pdf"
-BASE_DIR = Path("files")
+BASE_DIR = Path.cwd() / "files"
 
 class MainWindow(QMainWindow):
     
@@ -27,15 +30,14 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout()  
         
         splitter1 = QSplitter()
-        self.reader1 = ReaderWidget()
-        splitter1.addWidget(self.reader1)
-        self.reader2 = ReaderWidget()
-        splitter1.addWidget(self.reader2)
+        self.pdfviewer1 = PDFViewer()
+        splitter1.addWidget(self.pdfviewer1)
+        self.pdfviewer2 = PDFViewer()
+        splitter1.addWidget(self.pdfviewer2)
         layout.addWidget(splitter1)
-        self.reader1.load_file(self.current_pdf)
-        self.reader2.load_file(self.current_pdf)
+        # self.pdfviewer1.load_file(self.current_pdf)
+        # self.pdfviewer2.load_file(self.current_pdf)
         
-
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -45,19 +47,38 @@ class MainWindow(QMainWindow):
 
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
+        print("MainWindow init finish.")
 
     def initToolbar(self):
         toolbar = QToolBar("toolbar")
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
-        self.import_action = QAction(QIcon("./icons/icons_import-100.png"),"导入PDF文件",self)
+        self.import_action = QAction(QIcon("./icons/icons-importpdf-64.png"),"导入PDF文件",self)
         self.import_action.triggered.connect(self.onImportPDF)
         toolbar.addAction(self.import_action)
+
+        toolbar.addSeparator()
+
+        self.read_action = QAction(QIcon("./icons/icons-read.png"), "朗读", self)
+        self.read_action.triggered.connect(self.onReadPDF)
+        toolbar.addAction(self.read_action)
+
+        toolbar.addSeparator()
+
+        self.combobox = QComboBox()
+        self.combobox.addItems(["Argostranslate", "Opus", "Mbart"])
+        self.combobox.currentIndexChanged.connect(self.onModelChoose)
+        toolbar.addWidget(self.combobox)
 
         self.translate_action = QAction(QIcon("./icons/icons_en_zh-96.png"),"英译汉", self)
         self.translate_action.triggered.connect(self.onTranslateClick)
         toolbar.addAction(self.translate_action)
 
-        self.addToolBar(toolbar)      
+        self.addToolBar(toolbar)   
+
+    def onModelChoose(self, index):        
+        self.translator_choice = index
+        return 
 
     def onImportPDF(self):
         dialog = QFileDialog(self) 
@@ -75,9 +96,14 @@ class MainWindow(QMainWindow):
                 else:
                     shutil.copy(f, BASE_DIR)
             print(filenames)
-    
+
+    def onReadPDF(self):
+        self.reader = ReaderThread(self.current_pdf)
+        self.reader.start()
+        return
+
     def onTranslateClick(self):
-        self.thread = WorkerThread(self.current_pdf)
+        self.thread = WorkerThread(self.current_pdf, self.translator_choice)
         self.thread.progress.connect(self.workprogress)
         self.thread.finished.connect(self.workcompleted)
         self.translate_action.setEnabled(False)
@@ -91,7 +117,7 @@ class MainWindow(QMainWindow):
         if finished:
             self.translate_action.setEnabled(True)
         self.statusbar.showMessage("翻译工作已完成。")        
-        self.reader2.load_file(str(self.current_pdf).replace(".pdf", "-zh.pdf"))
+        self.pdfviewer2.load_file(str(self.current_pdf).replace(".pdf", "-zh.pdf"))
 
     def initLeftWidget(self):        
         left = QDockWidget()
@@ -121,13 +147,13 @@ class MainWindow(QMainWindow):
         self.current_pdf = BASE_DIR / item[0]
         pdf_en = BASE_DIR / item[0]         
         pdf_zh = BASE_DIR / item[0].replace(".pdf", "-zh.pdf")       
-        self.reader1.load_file(pdf_en)
-        self.reader2.load_file(pdf_zh)
+        self.pdfviewer1.load_file(pdf_en)
+        self.pdfviewer2.load_file(pdf_zh)
         
 
 if __name__ == "__main__":
     app = QApplication()
     window = MainWindow()
     window.show()
-
+    print("window show")
     sys.exit(app.exec())
